@@ -137,9 +137,117 @@ function Module:IsOverBaseRuneCost(PlayerProfileData, magicData)
 end
 
 -- Can this operation be placed at this point in the operations array of a magic ability
-function Module:CanOperationBePlacedAtIndex(magicData, operationData, index)
-	warn('CanOperationBePlacedAtIndex not 100% implemented')
-	-- return false, 'For this reason!'
+function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operationData, index)
+	local baseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, magicData.BaseRune)
+	-- if not baseRune then
+	-- 	return false, 'Pick a BaseRune before trying to add operations.'
+	-- end
+
+	print(operationData.Type)
+	local currentOperationConfig = MagicDataConfigModule.OperationsData[operationData.Type]
+	if currentOperationConfig.UseAllowedRuneTypeBlacklist then
+		-- base rune blacklist check
+		if baseRuneData and table.find(currentOperationConfig.RuneTypeBlacklist, baseRuneData.Type) then
+			return false, 'The BaseRune does not support this operation type.'
+		end
+	else
+		-- base rune whitelist check
+		if baseRuneData and not table.find(currentOperationConfig.RuneTypeWhitelist, baseRuneData.Type) then
+			return false, 'The BaseRune does not support this operation type.'
+		end
+	end
+
+	-- Elements check
+	local UsedElementsTypeArray = {} do
+		for _, usedElementUUID in ipairs(magicData.Elements) do
+			local elementData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, usedElementUUID)
+			table.insert(UsedElementsTypeArray, elementData.Type)
+		end
+	end
+
+	if currentOperationConfig.UseAllowedElementTypeBlacklist then
+		-- blacklist check
+		for _, disallowedElementType in ipairs(currentOperationConfig.ElementTypeBlacklist) do
+			if table.find(UsedElementsTypeArray, disallowedElementType) then
+				return false, 'Cannot use this operation whilst using the element '..(disallowedElementType)
+			end
+		end
+	else
+		-- whitelist check
+		for _, usedElementUUID in ipairs( magicData.Elements ) do
+			if not table.find(currentOperationConfig.ElementTypeWhitelist, usedElementUUID) then
+				return false, 'Cannot use this operation whilst using the element '..(usedElementUUID)
+			end
+		end
+	end
+
+	-- Previous operation check
+	-- (check if this can go there and check if the previous rune allows this to be after it)
+	local previousOperationRuneUUID = magicData.Operations[index-1]
+	local previousOperationRuneData = previousOperationRuneUUID and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, previousOperationRuneUUID)
+	if previousOperationRuneData then
+		local previousRuneDataConfig = MagicDataConfigModule.OperationsData[previousOperationRuneData.Type]
+
+		-- does this rune allow the previous to be there?
+		if currentOperationConfig.UsePreviousOperationTypeBlacklist then
+			-- blacklist
+			if table.find(currentOperationConfig.PreviousOperationTypeBlacklist, previousOperationRuneData.Type) then
+				return false, 'Cannot use this operation rune here as this rune does not allow '..previousOperationRuneData.Type..' type before it.'
+			end
+		else
+			-- whitelist
+			if not table.find(currentOperationConfig.PreviousOperationTypeWhitelist, previousOperationRuneData.Type) then
+				return false, 'Cannot use this operation rune here as this rune does not allow '..previousOperationRuneData.Type..' type before it.'
+			end
+		end
+
+		-- does the previous rune allow this rune to be here?
+		if previousRuneDataConfig.UseNextOperationTypeBlacklist then
+			-- blacklist
+			if table.find(previousRuneDataConfig.NextOperationTypeBlacklist, currentOperationConfig.Type) then
+				return false, 'Cannot use this operation rune here as the next rune does not allow '..currentOperationConfig.Type..' type before it.'
+			end
+		else
+			-- whitelist
+			if not table.find(previousRuneDataConfig.NextOperationTypeWhitelist, currentOperationConfig.Type) then
+				return false, 'Cannot use this operation rune here as the next rune does not allow '..currentOperationConfig.Type..' type before it.'
+			end
+		end
+	end
+
+	-- Next operation check
+	-- (check if this can go there and check if the next rune allows this to be before it)
+	local nextOperationRuneUUID = magicData.Operations[index+1]
+	local nextOperationRuneData = nextOperationRuneUUID and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, nextOperationRuneUUID)
+	if nextOperationRuneData then
+		local nextRuneDataConfig = MagicDataConfigModule.OperationsData[nextOperationRuneData.Type]
+
+		if currentOperationConfig.UseNextOperationTypeBlacklist then
+			-- blacklist
+			if table.find(currentOperationConfig.NextOperationTypeBlacklist, nextOperationRuneData.Type) then
+				return false, 'Cannot use this operation rune here as this rune does not allow '..nextOperationRuneData.Type..' type before it.'
+			end
+		else
+			-- whitelist
+			if not table.find(currentOperationConfig.NextOperationTypeWhitelist, nextOperationRuneData.Type) then
+				return false, 'Cannot use this operation rune here as this rune does not allow '..nextOperationRuneData.Type..' type before it.'
+			end
+		end
+
+		-- does the next rune allow this rune to be here?
+		if nextRuneDataConfig.UsePreviousOperationTypeBlacklist then
+			-- blacklist
+			if table.find(nextRuneDataConfig.PreviousOperationTypeBlacklist, currentOperationConfig.Type) then
+				return false, 'Cannot use this operation rune here as the rune does not allow '..currentOperationConfig.Type..' type before it.'
+			end
+		else
+			-- whitelist
+			if not table.find(nextRuneDataConfig.PreviousOperationTypeWhitelist, currentOperationConfig.Type) then
+				return false, 'Cannot use this operation rune here as the rune does not allow '..currentOperationConfig.Type..' type before it.'
+			end
+		end
+	end
+
 	return true
 end
 
@@ -152,6 +260,10 @@ function Module:SetMagicBaseRuneUUID(PlayerProfileData, magicData, baseRuneUUID)
 	local runeData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, baseRuneUUID)
 	if not runeData then
 		return false, 'Base Rune with UUID could not be found: '..tostring(baseRuneUUID)
+	end
+	local OldBaseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, baseRuneUUID)
+	if OldBaseRuneData then
+		OldBaseRuneData.ParentMagic = false
 	end
 	magicData.BaseRune = baseRuneUUID
 	runeData.ParentMagic = magicData.UUID
@@ -175,12 +287,17 @@ function Module:SetMagicElementRuneUUID(PlayerProfileData, magicData, elementRun
 	end
 
 	-- swap spots with this one if the selected rune was in a different spot
+	-- otherwise reset the ParentMagic of the rune that was there
 	if index and existent_index then
+		-- swap spots
 		magicData.Elements[existent_index] = magicData.Elements[index]
+	elseif magicData.Elements[index] then
+		magicData.Elements[index].ParentMagic = false
 	end
 
 	-- replace over the chosen spot
 	magicData.Elements[index] = elementRuneUUID
+	elementData.ParentMagic = magicData.UUID
 
 	return true
 end
@@ -197,7 +314,7 @@ function Module:SwapMagicDataOperationOrder(PlayerProfileData, magicData, index1
 		return false, 'No Operation Data found at index1!'
 	end
 
-	local canBePlaced, reason = Module:CanOperationBePlacedAtIndex(magicData, operationData, index2)
+	local canBePlaced, reason = Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operationData, index2)
 	if not canBePlaced then
 		return false, reason
 	end
@@ -205,12 +322,13 @@ function Module:SwapMagicDataOperationOrder(PlayerProfileData, magicData, index1
 	local operation2UUID = magicData.Operations[index2]
 	local otherOperationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, operation2UUID)
 	if otherOperationData then
-		canBePlaced, reason = Module:CanOperationBePlacedAtIndex(magicData, otherOperationData, index1)
+		canBePlaced, reason = Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, otherOperationData, index1)
 		if not canBePlaced then
 			return false, reason
 		end
 	end
 
+	-- swap them
 	magicData.Operations[index2] = operation1UUID
 	if operation2UUID then
 		magicData.Operations[index1] = operation2UUID
@@ -233,6 +351,7 @@ function Module:RemoveMagicDataOperation(PlayerProfileData, magicData, operation
 		return true
 	end
 
+	operationData.ParentMagic = false
 	table.remove(magicData.Operations, existing_index)
 
 	local newDataPlacement = magicData.Operations[existing_index]
@@ -240,11 +359,13 @@ function Module:RemoveMagicDataOperation(PlayerProfileData, magicData, operation
 		return true
 	end
 
-	local canBe, _ = Module:CanOperationBePlacedAtIndex(magicData, newDataPlacement, existing_index)
+	local canBe, _ = Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, newDataPlacement, existing_index)
 	if not canBe then
 		-- if the operation that was shifted left cannot fit there
 		-- remove everything after the index point.
 		while #magicData.Operations > existing_index do
+			local otherOperationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, magicData.Operations[#magicData.Operations])
+			otherOperationData.ParentMagic = false -- reset the ParentMagic
 			table.remove(magicData.Operations, #magicData.Operations)
 		end
 	end
@@ -271,11 +392,12 @@ function Module:AddMagicDataOperation(PlayerProfileData, magicData, operationUUI
 		Module:SwapMagicDataOperationOrder(PlayerProfileData, magicData, existingIndex, index)
 	else
 		-- add it at the index / end
-		local canBePlaced, reason = Module:CanOperationBePlacedAtIndex(magicData, operationData, index)
+		local canBePlaced, reason = Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operationData, index)
 		if not canBePlaced then
 			return false, reason
 		end
 
+		operationData.ParentMagic = magicData.UUID
 		table.insert(magicData.Operations, index, operationUUID)
 	end
 end
@@ -342,6 +464,7 @@ function Module:EquipPlayerMagicAbility(LocalPlayer, magicData, index)
 	-- equip it in the new slot
 	PlayerProfileData.EquippedMagic[index] = magicData.UUID
 
+	-- update equipped magic in the actual ability system
 	SystemsContainer.MagicAbilityService:UpdateEquipped(LocalPlayer)
 
 	return true
@@ -371,7 +494,7 @@ end
 
 -- Handle any remote invokations
 function Module:HandleDataEditRemote(LocalPlayer, Data)
-	warn(LocalPlayer, Data)
+	warn('HANDLE REMOTE - ', LocalPlayer, Data)
 end
 
 function Module:Init(otherSystems)

@@ -24,7 +24,25 @@ end
 -- what all operation runes have
 local function fromBaseOperation(override)
 	return TableUtility:SetProperties({
+		-- only allow this operation for certain rune types
+		UseAllowedRuneTypeBlacklist = false,
+		RuneTypeWhitelist = {},
+		RuneTypeBlacklist = {},
 
+		-- only allow this operation for certain element types
+		UseAllowedElementTypeBlacklist = false,
+		ElementTypeWhitelist = {},
+		ElementTypeBlacklist = {},
+
+		-- only these specific types of operations can be *DIRECTLY* BEFORE this one
+		UsePreviousOperationTypeBlacklist = false,
+		PreviousOperationTypeWhitelist = {},
+		PreviousOperationTypeBlacklist = {},
+
+		-- only these specific types of operations can be *DIRECTLY* AFTER this one
+		UseNextOperationTypeBlacklist = false,
+		NextOperationTypeWhitelist = {},
+		NextOperationTypeBlacklist = {},
 	}, override)
 end
 
