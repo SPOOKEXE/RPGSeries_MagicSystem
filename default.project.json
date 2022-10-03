@@ -5,7 +5,7 @@
 		"Players": {
 			"$className": "Players",
 			"$properties": {
-				"CharacterAutoLoads": false,
+				"CharacterAutoLoads": true,
 				"RespawnTime" : 0
 			}
 		},
@@ -44,6 +44,10 @@
 		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
+			"$properties": {
+				"LoadCharacterAppearance": false,
+				"UserEmotesEnabled": false
+			},
 			"StarterPlayerScripts": {
 				"$className": "StarterPlayerScripts",
 				"$ignoreUnknownInstances": true,

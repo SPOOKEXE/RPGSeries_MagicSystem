@@ -1,4 +1,4 @@
-
+--[==[
 warn([[
 																	   
 	.oooooo..o ooooooooo.     .oooooo.     .oooooo.   oooo    oooo     
@@ -12,6 +12,7 @@ warn([[
 ]])
 
 task.delay(3, warn, "Anything errors/warns is considered a bug/problem.\nPlease report it to the developers via discord!")
+--]==]
 
 -- // MAIN // --
 local ParentCache = {}
