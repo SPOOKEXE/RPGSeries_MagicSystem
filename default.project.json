@@ -1,0 +1,59 @@
+{
+	"name": "rpg-series",
+	"tree": {
+		"$className": "DataModel",
+		"Players": {
+			"$className": "Players",
+			"$properties": {
+				"CharacterAutoLoads": false,
+				"RespawnTime" : 0
+			}
+		},
+		"ReplicatedFirst": {
+			"$className": "ReplicatedFirst",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ReplicatedFirst"
+		},
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ReplicatedStorage",
+			"Assets": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true
+			}
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ServerScriptService"
+		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ServerStorage",
+			"Assets": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true
+			},
+			"CorePlugin": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true,
+				"$path": "plugin"
+			}
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"$ignoreUnknownInstances": true,
+				"$path": "src/StarterPlayerScripts",
+				"Assets": {
+					"$className": "Folder",
+					"$ignoreUnknownInstances": true
+				}
+			},
+			"$ignoreUnknownInstances": true
+		}
+	}
+}
