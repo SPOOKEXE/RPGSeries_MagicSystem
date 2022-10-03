@@ -2,6 +2,15 @@
 -- // Module // --
 local Module = {}
 
+function Module:SetProperties(Parent, propertyTable)
+	if typeof(propertyTable) == 'table' then
+		for propertyName, propertyValue in pairs(propertyTable) do
+			Parent[propertyName] = propertyValue
+		end
+	end
+	return Parent -- allows chaining of expressions and such
+end
+
 function Module:DeepCopy(passed_table)
 	local clonedTable = {}
 	if typeof(passed_table) == "table" then

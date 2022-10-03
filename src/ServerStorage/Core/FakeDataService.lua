@@ -12,14 +12,12 @@ function Module:CreateFakeData()
 	return {
 		-- equipped magic UUIDs
 		EquippedMagic = { },
-		-- all attribute runes are stored here
-		MagicAttributeRunes = { },
-		-- artifacts that can be applied to magic to change how they work are stored here
-		MagicArtifactInventory = { },
+		-- attribute runes are stored here.
+		-- artifacts are stored here.
+		-- attributes are applied to magic to change how they work
+		MagicItemsInventory = { },
 		-- all custom created magic with the artifact data are stored here
-		MagicDataInventory = { },
-		-- player's inventory
-		Inventory = {},
+		MagicSpellsInventory = { },
 	}
 end
 
