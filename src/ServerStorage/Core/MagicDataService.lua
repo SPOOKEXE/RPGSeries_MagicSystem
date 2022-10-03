@@ -304,6 +304,10 @@ end
 -- allow this spell to be created even if all slots aren't filled
 -- but don't allow the player to actually use the magic unless it has the bare minimum
 function Module:CreateBaseMagicSpell(PlayerProfileData, magicRuneUUID, elementRuneUUIDs, operationUUIDs)
+	if #PlayerProfileData.MagicSpellsInventory + 1 > MagicDataConfigModule.MaximumSpellsInInventory then
+		return false, 'You have reached the maximum capacity of magic spells.'
+	end
+
 	local emptySpellData = Module:NewBaseMagicData()
 	Module:SetMagicBaseRuneUUID(PlayerProfileData, emptySpellData, magicRuneUUID)
 	for _, UUID in ipairs( elementRuneUUIDs or {} ) do
@@ -316,15 +320,51 @@ function Module:CreateBaseMagicSpell(PlayerProfileData, magicRuneUUID, elementRu
 	return emptySpellData
 end
 
+-- Equip magic spells
+function Module:EquipPlayerMagicAbility(LocalPlayer, magicData, index)
+	local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true)
+
+	if index < 1 or index > MagicDataConfigModule.MaxEquippedMagics then
+		local errStr = 'Invalid Equip Slot Range. "1 > %s > %s" holds untrue.'
+		return false, string.format(errStr, index, MagicDataConfigModule.MaxEquippedMagics)
+	end
+
+	-- if it is equipped already, unequip it
+	local currentSlot = table.find(PlayerProfileData.EquippedMagic, magicData.UUID)
+	if currentSlot then
+		-- already in the slot, end early
+		if currentSlot == index then
+			return true
+		end
+		PlayerProfileData.EquippedMagic[currentSlot] = false
+	end
+
+	-- equip it in the new slot
+	PlayerProfileData.EquippedMagic[index] = magicData.UUID
+
+	SystemsContainer.MagicAbilityService:UpdateEquipped(LocalPlayer)
+
+	return true
+end
+
 -- clears all empty base magic spells
 function Module:ClearAllEmptyBaseMagics(PlayerProfileData)
-	local index = 1
-	while index < #PlayerProfileData.MagicSpellsInventory do
-		local magicData = PlayerProfileData.MagicSpellsInventory[index]
+	-- clear from magic inventory
+	local _index = 1
+	while _index <= #PlayerProfileData.MagicSpellsInventory do
+		local magicData = PlayerProfileData.MagicSpellsInventory[_index]
 		if magicData.BaseRune == false and #magicData.Elements == 0 and #magicData.Operations == 0 then
-			table.remove( PlayerProfileData.MagicSpellsInventory, index)
+			table.remove( PlayerProfileData.MagicSpellsInventory, _index)
 		else
-			index += 1
+			_index += 1
+		end
+	end
+
+	-- clear equipped uuids that no longer have data in the magic inventory
+	local UUIDCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicSpellsInventory)
+	for index, equippedUUID in ipairs( PlayerProfileData.EquippedMagic ) do
+		if not UUIDCache[equippedUUID] then
+			PlayerProfileData.EquippedMagic[index] = false
 		end
 	end
 end

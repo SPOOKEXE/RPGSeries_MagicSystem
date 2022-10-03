@@ -10,6 +10,10 @@ local SystemsContainer = {}
 -- // Module // --
 local Module = {}
 
+function Module:UpdateEquipped(LocalPlayer)
+	warn('MagicAbilityService - Update Equipped Magic - '..LocalPlayer.Name)
+end
+
 function Module:Init(otherSystems)
 	SystemsContainer = otherSystems
 end
