@@ -78,8 +78,12 @@ function Module:StartTest(LocalPlayer)
 	-- SET THE MAGIC OPERATION ORDER
 	local operationRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('OperationRune', PlayerProfileData.MagicItemsInventory, 8)
 	warn('OPERATION RUNES; ', #operationRunes, operationRunes)
-	-- add runes here
-	-- warn('MAGIC_DATA_3 | ', PlayerProfileData)
+	for _, operationRune in ipairs( operationRunes ) do
+		MagicDataService:AddMagicDataOperation(PlayerProfileData, BaseMagicSpell, operationRune.UUID, false)
+	end
+	warn('MAGIC_DATA_3 | ', PlayerProfileData)
+
+	MagicDataService:RecalculateMagicDataCost(PlayerProfileData, BaseMagicSpell)
 
 	warn('FINAL_MAGIC_DATA | ', BaseMagicSpell)
 end
