@@ -52,7 +52,7 @@ end
 -- // Module // --
 local Module = {}
 
-Module.MaxEquippedMagics = 5
+Module.MaxEquippedMagics = 4
 Module.MaxElementsPerAbility = 3
 Module.MaximumAbilitiesInInventory = 20 -- maximum abilities the player can hold
 
