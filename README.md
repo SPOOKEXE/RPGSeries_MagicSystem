@@ -1,5 +1,5 @@
 # RPG_Series_Project
-RPG Series Project. Originatly started by SPOOK_EXE and contributed to by community members.
+RPG Series Project. Originally started by SPOOK_EXE and contributed to by community members.
 MIT License; meaning its available to all for free use anywhere without restrictions.
 
 It'd be great if you link back to this GitHub if you plan to use heaps of code for your game!
