@@ -30,10 +30,15 @@ function Module:GetProfileFromPlayer(LocalPlayer, Yield)
 end
 
 function Module:PlayerAdded(LocalPlayer)
-	FakeProfileCache[LocalPlayer] = {Data = Module:CreateFakeData()}
+	local BlankData = {Data = Module:CreateFakeData()}
+	for _, MagicSpellData in ipairs( BlankData.Data.MagicSpellsInventory ) do
+		Module:ReconcileMagicData(BlankData, MagicSpellData)
+	end
+	FakeProfileCache[LocalPlayer] = BlankData
 end
 
 function Module:PlayerRemoving(LocalPlayer)
+	SystemsContainer.MagicDataService:ClearAllEmptyBaseMagics(LocalPlayer)
 	FakeProfileCache[LocalPlayer] = nil
 end
 

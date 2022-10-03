@@ -6,6 +6,7 @@ local Module = {}
 
 Module.MaxEquippedMagics = 5
 Module.MaxElementsPerSpell = 3
+Module.MaximumSpellsInInventory = 20 -- maximum spells the player can hold
 
 Module.BaseRuneTypes = {
 	Projectile = {},
