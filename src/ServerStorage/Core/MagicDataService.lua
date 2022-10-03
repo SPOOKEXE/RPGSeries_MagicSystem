@@ -13,11 +13,6 @@ local TableUtility = ReplicatedModules.Utility.Table
 
 local SystemsContainer = {}
 
-local function GetDataFromArrayByUUID(ParentArray, UUIDValue)
-	local UUID_MAP = InventoryDataConfigModule:GetUUIDDictionaryFromData(ParentArray)
-	return UUID_MAP[UUIDValue]
-end
-
 -- // Module // --
 local Module = {}
 
@@ -109,16 +104,21 @@ end
 
 -- Recalculate magic cost
 function Module:RecalculateMagicDataCost(PlayerProfileData, magicData)
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
 	local NewMagicCost = 0
 	for _, elementUUID in ipairs(magicData.Elements) do
-		local elementData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, elementUUID)
+		if not elementUUID then
+			continue
+		end
+		local elementData = MagicItemCache[elementUUID]
 		local elementConfig = elementData and MagicDataConfigModule.Elements[elementData.Type]
 		if elementConfig then
 			NewMagicCost += (elementConfig.Cost or 1)
 		end
 	end
 	for _, operationUUID in ipairs( magicData.Operations ) do
-		local operationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, operationUUID)
+		local operationData = MagicItemCache[operationUUID]
 		local operationConfig = operationData and MagicDataConfigModule.OperationsData[operationData.Type]
 		if operationConfig then
 			NewMagicCost += (operationConfig.Cost or 1)
@@ -126,7 +126,7 @@ function Module:RecalculateMagicDataCost(PlayerProfileData, magicData)
 	end
 	magicData.MaxMagicDataCost = NewMagicCost
 
-	local baseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicAbilityInventory, magicData.BaseRune)
+	local baseRuneData = magicData.BaseRune and MagicItemCache[magicData.BaseRune]
 	magicData.MaxMagicDataCost = baseRuneData and baseRuneData.MaxMagicDataCost or -1
 end
 
@@ -138,7 +138,9 @@ end
 
 -- Can this operation be placed at this point in the operations array of a magic ability
 function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operationData, index)
-	local baseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, magicData.BaseRune)
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
+	local baseRuneData = magicData.BaseRune and MagicItemCache[magicData.BaseRune]
 	-- if not baseRune then
 	-- 	return false, 'Pick a Base Rune before trying to add operations to the ability.'
 	-- end
@@ -159,7 +161,10 @@ function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operat
 	-- Elements check
 	local UsedElementsTypeArray = {} do
 		for _, usedElementUUID in ipairs(magicData.Elements) do
-			local elementData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, usedElementUUID)
+			if not usedElementUUID then
+				continue
+			end
+			local elementData = MagicItemCache[usedElementUUID]
 			table.insert(UsedElementsTypeArray, elementData.Type)
 		end
 	end
@@ -183,7 +188,7 @@ function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operat
 	-- Previous operation check
 	-- (check if this can go there and check if the previous rune allows this to be after it)
 	local previousOperationRuneUUID = magicData.Operations[index-1]
-	local previousOperationRuneData = previousOperationRuneUUID and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, previousOperationRuneUUID)
+	local previousOperationRuneData = previousOperationRuneUUID and MagicItemCache[previousOperationRuneUUID]
 	if previousOperationRuneData then
 		local previousRuneDataConfig = MagicDataConfigModule.OperationsData[previousOperationRuneData.Type]
 
@@ -217,7 +222,7 @@ function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operat
 	-- Next operation check
 	-- (check if this can go there and check if the next rune allows this to be before it)
 	local nextOperationRuneUUID = magicData.Operations[index+1]
-	local nextOperationRuneData = nextOperationRuneUUID and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, nextOperationRuneUUID)
+	local nextOperationRuneData = nextOperationRuneUUID and MagicItemCache[nextOperationRuneUUID]
 	if nextOperationRuneData then
 		local nextRuneDataConfig = MagicDataConfigModule.OperationsData[nextOperationRuneData.Type]
 
@@ -256,11 +261,13 @@ end
 
 -- Set the base magic rune uuid
 function Module:SetMagicBaseRuneUUID(PlayerProfileData, magicData, baseRuneUUID)
-	local runeData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, baseRuneUUID)
+	local ElementRuneCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
+	local runeData = ElementRuneCache[baseRuneUUID]
 	if not runeData then
 		return false, 'Base Rune with UUID could not be found: '..tostring(baseRuneUUID)
 	end
-	local OldBaseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, baseRuneUUID)
+	local OldBaseRuneData = magicData.BaseRune and ElementRuneCache[baseRuneUUID]
 	if OldBaseRuneData then
 		OldBaseRuneData.ParentMagic = false
 	end
@@ -274,9 +281,47 @@ end
 -- if index is not nil, set the rune uuid to that spot
 -- also check if the rune uuid is already in the uuid array are remove it if so
 function Module:SetMagicElementRuneUUID(PlayerProfileData, magicData, elementRuneUUID, index)
-	local elementData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, elementRuneUUID)
-	if not elementData then
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
+	local elementRuneData = MagicItemCache[elementRuneUUID]
+	local elementRuneConfig = elementRuneData and MagicDataConfigModule.Elements[elementRuneData.Type]
+	if not elementRuneData then
 		return false, 'Element Rune with UUID could not be found: '..tostring(elementRuneUUID)
+	end
+
+	-- Elements check
+	local UsedElementsTypeArray = {} do
+		for _, usedElementRuneUUID in ipairs(magicData.Elements) do
+			if not usedElementRuneUUID then
+				continue
+			end
+			local targetElementData = MagicItemCache[usedElementRuneUUID]
+			local targetElementConfig = MagicDataConfigModule.Elements[targetElementData.Type]
+			if targetElementConfig.UseAllowedElementTypeWhitelist then
+				if not table.find(targetElementConfig.ElementTypeWhitelist, elementRuneConfig.Type) then
+					return false, 'You cannot mix these elements! '..targetElementConfig.Type..' and '..elementRuneConfig.Type
+				end
+			else
+				if table.find(targetElementConfig.ElementTypeBlacklist, elementRuneConfig.Type) then
+					return false, 'You cannot mix these elements! '..targetElementConfig.Type..' and '..elementRuneConfig.Type
+				end
+			end
+			table.insert(UsedElementsTypeArray, targetElementConfig.Type)
+		end
+	end
+
+	if elementRuneConfig.UseAllowedElementTypeWhitelist then
+		for _, usedType in ipairs( UsedElementsTypeArray ) do
+			if not table.find(elementRuneConfig.ElementTypeWhitelist, usedType) then
+				return false, 'You cannot mix these elements! '..usedType..' and '..elementRuneConfig.Type
+			end
+		end
+	else
+		for _, usedType in ipairs( UsedElementsTypeArray ) do
+			if table.find(elementRuneConfig.ElementTypeBlacklist, usedType) then
+				return false, 'You cannot mix these elements! '..usedType..' and '..elementRuneConfig.Type
+			end
+		end
 	end
 
 	-- remove it from the data if it already exists
@@ -296,7 +341,7 @@ function Module:SetMagicElementRuneUUID(PlayerProfileData, magicData, elementRun
 
 	-- replace over the chosen spot
 	magicData.Elements[index] = elementRuneUUID
-	elementData.ParentMagic = magicData.UUID
+	elementRuneData.ParentMagic = magicData.UUID
 
 	return true
 end
@@ -307,8 +352,10 @@ function Module:SwapMagicDataOperationOrder(PlayerProfileData, magicData, index1
 	index1 = math.clamp(index1, 1, #magicData.Operations)
 	index2 = math.clamp(index2, 1, #magicData.Operations)
 
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
 	local operation1UUID = magicData.Operations[index1]
-	local operationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, operation1UUID)
+	local operationData = MagicItemCache[operation1UUID]
 	if not operationData then
 		return false, 'No Operation Data found at index1!'
 	end
@@ -319,7 +366,7 @@ function Module:SwapMagicDataOperationOrder(PlayerProfileData, magicData, index1
 	end
 
 	local operation2UUID = magicData.Operations[index2]
-	local otherOperationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, operation2UUID)
+	local otherOperationData = MagicItemCache[operation2UUID]
 	if otherOperationData then
 		canBePlaced, reason = Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, otherOperationData, index1)
 		if not canBePlaced then
@@ -340,7 +387,9 @@ end
 -- If the next operations are unsupported for the new earlier step,
 -- unequip those automatically with a warning message
 function Module:RemoveMagicDataOperation(PlayerProfileData, magicData, operationUUID)
-	local operationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, operationUUID)
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
+	local operationData =MagicItemCache[operationUUID]
 	if not operationData then
 		return false, 'No matching Operation Data found in inventory!'
 	end
@@ -363,7 +412,8 @@ function Module:RemoveMagicDataOperation(PlayerProfileData, magicData, operation
 		-- if the operation that was shifted left cannot fit there
 		-- remove everything after the index point.
 		while #magicData.Operations > existing_index do
-			local otherOperationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, magicData.Operations[#magicData.Operations])
+			local LastUUID = magicData.Operations[#magicData.Operations]
+			local otherOperationData = MagicItemCache[LastUUID]
 			otherOperationData.ParentMagic = false -- reset the ParentMagic
 			table.remove(magicData.Operations, #magicData.Operations)
 		end
@@ -378,7 +428,9 @@ end
 -- if any operations after the selected index cannot be there, it will remove everything
 -- from that point afterwards
 function Module:AddMagicDataOperation(PlayerProfileData, magicData, operationUUID, index)
-	local operationData = GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, operationUUID)
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
+	local operationData =	MagicItemCache[operationUUID]
 	if not operationData then
 		return false, 'No matching Operation Data found in inventory!'
 	end

@@ -17,7 +17,10 @@ end
 -- what all element runes have
 local function fromBaseElement(override)
 	return TableUtility:SetProperties({
-
+		-- only allow certain elements to mix
+		UseAllowedElementTypeWhitelist = false,
+		ElementTypeWhitelist = {},
+		ElementTypeBlacklist = {},
 	}, override)
 end
 
