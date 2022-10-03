@@ -17,7 +17,7 @@ function Module:CreateFakeData()
 		-- attributes are applied to magic to change how they work
 		MagicItemsInventory = {},
 		-- all custom created magic with the artifact data are stored here
-		MagicSpellsInventory = {},
+		MagicAbilityInventory = {},
 	}
 end
 
@@ -31,8 +31,8 @@ end
 
 function Module:PlayerAdded(LocalPlayer)
 	local BlankData = {Data = Module:CreateFakeData()}
-	for _, MagicSpellData in ipairs( BlankData.Data.MagicSpellsInventory ) do
-		Module:ReconcileMagicData(BlankData, MagicSpellData)
+	for _, MagicAbilityData in ipairs( BlankData.Data.MagicAbilityInventory ) do
+		Module:ReconcileMagicData(BlankData, MagicAbilityData)
 	end
 	FakeProfileCache[LocalPlayer] = BlankData
 end

@@ -60,8 +60,8 @@ function Module:DoesOperationParamsMatch(inputParams, baseParams)
 	return true
 end
 
--- This holds the data for any magic spell operation data
--- (operation runes control how the spell work)
+-- This holds the data for any magic ability operation data
+-- (operation runes control how the ability work)
 function Module:NewBaseOperationRuneData(operationID, operationParams)
 	operationParams = operationParams or {} -- in the event that nothing is passed
 	local baseParams = operationID and MagicDataConfigModule.OperationsData[operationID]
@@ -79,17 +79,17 @@ function Module:NewBaseOperationRuneData(operationID, operationParams)
 	}
 end
 
--- This holds the data for any magic spell
--- note: players cannot create new magic spells without a Magic Rune.
+-- This holds the data for any magic ability
+-- note: players cannot create new magic abilities without a Magic Rune.
 function Module:NewBaseMagicData()
 	return {
 		UUID = HttpService:GenerateGUID(false),
 
-		MaxMagicDataCost = 5, -- maximum artifact cost this spell can hold (from Base Rune)
+		MaxMagicDataCost = 5, -- maximum artifact cost this ability can hold (from Base Rune)
 		CurrentMagicDataCost = 0, -- each artifact has a cost to it (compiled cost)
 
 		BaseRune = false, -- uuid pointing to the magic rune data
-		Elements = table.create(MagicDataConfigModule.MaxElementsPerSpell, false), -- element rune UUIDs
+		Elements = table.create(MagicDataConfigModule.MaxElementsPerAbility, false), -- element rune UUIDs
 		Operations = {}, -- array of UUIDs pointing to ArtifactDatas (+ indicates order)
 	}
 end
@@ -100,7 +100,7 @@ end
 
 -- Reconcile Magic Data
 function Module:ReconcileMagicData(PlayerProfileData, MagicData)
-	while #MagicData.Elements > MagicDataConfigModule.MaxElementsPerSpell do
+	while #MagicData.Elements > MagicDataConfigModule.MaxElementsPerAbility do
 		table.remove(MagicData.Elements, #MagicData.Elements)
 	end
 	Module:ClearAllEmptyBaseMagics(PlayerProfileData)
@@ -126,7 +126,7 @@ function Module:RecalculateMagicDataCost(PlayerProfileData, magicData)
 	end
 	magicData.MaxMagicDataCost = NewMagicCost
 
-	local baseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicSpellsInventory, magicData.BaseRune)
+	local baseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicAbilityInventory, magicData.BaseRune)
 	magicData.MaxMagicDataCost = baseRuneData and baseRuneData.MaxMagicDataCost or -1
 end
 
@@ -140,19 +140,18 @@ end
 function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operationData, index)
 	local baseRuneData = magicData.BaseRune and GetDataFromArrayByUUID(PlayerProfileData.MagicItemsInventory, magicData.BaseRune)
 	-- if not baseRune then
-	-- 	return false, 'Pick a BaseRune before trying to add operations.'
+	-- 	return false, 'Pick a Base Rune before trying to add operations to the ability.'
 	-- end
 
-	print(operationData.Type)
 	local currentOperationConfig = MagicDataConfigModule.OperationsData[operationData.Type]
-	if currentOperationConfig.UseAllowedRuneTypeBlacklist then
-		-- base rune blacklist check
-		if baseRuneData and table.find(currentOperationConfig.RuneTypeBlacklist, baseRuneData.Type) then
+	if currentOperationConfig.UseAllowedRuneTypeWhitelist then
+		-- base rune whitelist check
+		if baseRuneData and not table.find(currentOperationConfig.RuneTypeWhitelist, baseRuneData.Type) then
 			return false, 'The BaseRune does not support this operation type.'
 		end
 	else
-		-- base rune whitelist check
-		if baseRuneData and not table.find(currentOperationConfig.RuneTypeWhitelist, baseRuneData.Type) then
+		-- base rune blacklist check
+		if baseRuneData and table.find(currentOperationConfig.RuneTypeBlacklist, baseRuneData.Type) then
 			return false, 'The BaseRune does not support this operation type.'
 		end
 	end
@@ -165,18 +164,18 @@ function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operat
 		end
 	end
 
-	if currentOperationConfig.UseAllowedElementTypeBlacklist then
-		-- blacklist check
-		for _, disallowedElementType in ipairs(currentOperationConfig.ElementTypeBlacklist) do
-			if table.find(UsedElementsTypeArray, disallowedElementType) then
-				return false, 'Cannot use this operation whilst using the element '..(disallowedElementType)
-			end
-		end
-	else
+	if currentOperationConfig.UseAllowedElementTypeWhitelist then
 		-- whitelist check
 		for _, usedElementUUID in ipairs( magicData.Elements ) do
 			if not table.find(currentOperationConfig.ElementTypeWhitelist, usedElementUUID) then
 				return false, 'Cannot use this operation whilst using the element '..(usedElementUUID)
+			end
+		end
+	else
+		-- blacklist check
+		for _, disallowedElementType in ipairs(currentOperationConfig.ElementTypeBlacklist) do
+			if table.find(UsedElementsTypeArray, disallowedElementType) then
+				return false, 'Cannot use this operation whilst using the element '..(disallowedElementType)
 			end
 		end
 	end
@@ -189,27 +188,27 @@ function Module:CanOperationBePlacedAtIndex(PlayerProfileData, magicData, operat
 		local previousRuneDataConfig = MagicDataConfigModule.OperationsData[previousOperationRuneData.Type]
 
 		-- does this rune allow the previous to be there?
-		if currentOperationConfig.UsePreviousOperationTypeBlacklist then
-			-- blacklist
-			if table.find(currentOperationConfig.PreviousOperationTypeBlacklist, previousOperationRuneData.Type) then
+		if currentOperationConfig.UsePreviousOperationTypeWhitelist then
+			-- whitelist
+			if not table.find(currentOperationConfig.PreviousOperationTypeWhitelist, previousOperationRuneData.Type) then
 				return false, 'Cannot use this operation rune here as this rune does not allow '..previousOperationRuneData.Type..' type before it.'
 			end
 		else
-			-- whitelist
-			if not table.find(currentOperationConfig.PreviousOperationTypeWhitelist, previousOperationRuneData.Type) then
+			-- blacklist
+			if table.find(currentOperationConfig.PreviousOperationTypeBlacklist, previousOperationRuneData.Type) then
 				return false, 'Cannot use this operation rune here as this rune does not allow '..previousOperationRuneData.Type..' type before it.'
 			end
 		end
 
 		-- does the previous rune allow this rune to be here?
-		if previousRuneDataConfig.UseNextOperationTypeBlacklist then
-			-- blacklist
-			if table.find(previousRuneDataConfig.NextOperationTypeBlacklist, currentOperationConfig.Type) then
+		if previousRuneDataConfig.UseNextOperationTypeWhitelist then
+			-- whitelist
+			if not table.find(previousRuneDataConfig.NextOperationTypeWhitelist, currentOperationConfig.Type) then
 				return false, 'Cannot use this operation rune here as the next rune does not allow '..currentOperationConfig.Type..' type before it.'
 			end
 		else
-			-- whitelist
-			if not table.find(previousRuneDataConfig.NextOperationTypeWhitelist, currentOperationConfig.Type) then
+			-- blacklist
+			if table.find(previousRuneDataConfig.NextOperationTypeBlacklist, currentOperationConfig.Type) then
 				return false, 'Cannot use this operation rune here as the next rune does not allow '..currentOperationConfig.Type..' type before it.'
 			end
 		end
@@ -337,7 +336,7 @@ function Module:SwapMagicDataOperationOrder(PlayerProfileData, magicData, index1
 	return true
 end
 
--- Remove a magic operation out of the magic spell
+-- Remove a magic operation out of the magic ability
 -- If the next operations are unsupported for the new earlier step,
 -- unequip those automatically with a warning message
 function Module:RemoveMagicDataOperation(PlayerProfileData, magicData, operationUUID)
@@ -373,7 +372,7 @@ function Module:RemoveMagicDataOperation(PlayerProfileData, magicData, operation
 	return true
 end
 
--- Add a magic operation to the magic spell at the index (otherwise at the end)
+-- Add a magic operation to the magic ability at the index (otherwise at the end)
 -- if it cannot be there, nothing happens.
 -- if the operation is already being used, it will swap places with the selected index
 -- if any operations after the selected index cannot be there, it will remove everything
@@ -423,26 +422,26 @@ function Module:GivePlayerMagicOperationRune(PlayerProfileData, operationID, ope
 	return emptyOperationRune
 end
 
--- allow this spell to be created even if all slots aren't filled
+-- allow this ability to be created even if all slots aren't filled
 -- but don't allow the player to actually use the magic unless it has the bare minimum
-function Module:CreateBaseMagicSpell(PlayerProfileData, magicRuneUUID, elementRuneUUIDs, operationUUIDs)
-	if #PlayerProfileData.MagicSpellsInventory + 1 > MagicDataConfigModule.MaximumSpellsInInventory then
-		return false, 'You have reached the maximum capacity of magic spells.'
+function Module:CreateBaseMagicAbility(PlayerProfileData, magicRuneUUID, elementRuneUUIDs, operationUUIDs)
+	if #PlayerProfileData.MagicAbilityInventory + 1 > MagicDataConfigModule.MaximumAbilitiesInInventory then
+		return false, 'You have reached the maximum capacity of magic abilities.'
 	end
 
-	local emptySpellData = Module:NewBaseMagicData()
-	Module:SetMagicBaseRuneUUID(PlayerProfileData, emptySpellData, magicRuneUUID)
+	local emptyAbilityData = Module:NewBaseMagicData()
+	Module:SetMagicBaseRuneUUID(PlayerProfileData, emptyAbilityData, magicRuneUUID)
 	for _, UUID in ipairs( elementRuneUUIDs or {} ) do
-		Module:SetMagicElementRuneUUID(PlayerProfileData, emptySpellData, UUID)
+		Module:SetMagicElementRuneUUID(PlayerProfileData, emptyAbilityData, UUID)
 	end
 	for _, Operation in ipairs( operationUUIDs or {} ) do
-		Module:SetMagicBaseRuneUUID(PlayerProfileData, emptySpellData, Operation)
+		Module:SetMagicBaseRuneUUID(PlayerProfileData, emptyAbilityData, Operation)
 	end
-	table.insert(PlayerProfileData.MagicSpellsInventory, emptySpellData)
-	return emptySpellData
+	table.insert(PlayerProfileData.MagicAbilityInventory, emptyAbilityData)
+	return emptyAbilityData
 end
 
--- Equip magic spells
+-- Equip magic abilities
 function Module:EquipPlayerMagicAbility(LocalPlayer, magicData, index)
 	local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true)
 
@@ -470,21 +469,21 @@ function Module:EquipPlayerMagicAbility(LocalPlayer, magicData, index)
 	return true
 end
 
--- clears all empty base magic spells
+-- clears all empty base magic abilities
 function Module:ClearAllEmptyBaseMagics(PlayerProfileData)
 	-- clear from magic inventory
 	local _index = 1
-	while _index <= #PlayerProfileData.MagicSpellsInventory do
-		local magicData = PlayerProfileData.MagicSpellsInventory[_index]
+	while _index <= #PlayerProfileData.MagicAbilityInventory do
+		local magicData = PlayerProfileData.MagicAbilityInventory[_index]
 		if magicData.BaseRune == false and #magicData.Elements == 0 and #magicData.Operations == 0 then
-			table.remove( PlayerProfileData.MagicSpellsInventory, _index)
+			table.remove( PlayerProfileData.MagicAbilityInventory, _index)
 		else
 			_index += 1
 		end
 	end
 
 	-- clear equipped uuids that no longer have data in the magic inventory
-	local UUIDCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicSpellsInventory)
+	local UUIDCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicAbilityInventory)
 	for index, equippedUUID in ipairs( PlayerProfileData.EquippedMagic ) do
 		if not UUIDCache[equippedUUID] then
 			PlayerProfileData.EquippedMagic[index] = false

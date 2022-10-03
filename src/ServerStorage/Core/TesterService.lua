@@ -53,39 +53,39 @@ function Module:StartTest(LocalPlayer)
 	Module:GivePlayerHeapsOfVariety(LocalPlayer, 5) -- give 'n' number of each type of every type of rune
 	warn('DATA_2 | ', PlayerProfileData)
 
-	-- CREATE NEW MAGIC SPELL
-	local BaseMagicSpell = MagicDataService:CreateBaseMagicSpell(PlayerProfileData, false, false, false)
+	-- CREATE NEW MAGIC ABILITY
+	local BaseMagicAbility = MagicDataService:CreateBaseMagicAbility(PlayerProfileData, false, false, false)
 	-- warn('DATA_3 | ', PlayerProfileData)
 
 	-- SET THE MAGIC BASE RUNE
 	local baseMagicRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('MagicRune', PlayerProfileData.MagicItemsInventory, 3)
 	warn('MAGIC RUNES; ', #baseMagicRunes, baseMagicRunes)
-	warn('MAGIC_DATA_0 | ', BaseMagicSpell)
-	MagicDataService:SetMagicBaseRuneUUID(PlayerProfileData, BaseMagicSpell, baseMagicRunes[1].UUID)
-	warn('MAGIC_DATA_1 | ', BaseMagicSpell)
+	warn('MAGIC_DATA_0 | ', BaseMagicAbility)
+	MagicDataService:SetMagicBaseRuneUUID(PlayerProfileData, BaseMagicAbility, baseMagicRunes[1].UUID)
+	warn('MAGIC_DATA_1 | ', BaseMagicAbility)
 
 	-- SET THE MAGIC ELEMENTS
 	local elementRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('ElementRune', PlayerProfileData.MagicItemsInventory, 3)
 	warn('ELEMENT RUNES; ', #elementRunes, elementRunes)
 	for index, elementRune in ipairs( elementRunes ) do
-		if index > MagicDataConfigModule.MaxElementsPerSpell then
+		if index > MagicDataConfigModule.MaxElementsPerAbility then
 			break
 		end
-		MagicDataService:SetMagicElementRuneUUID(PlayerProfileData, BaseMagicSpell, elementRune.UUID, index)
+		MagicDataService:SetMagicElementRuneUUID(PlayerProfileData, BaseMagicAbility, elementRune.UUID, index)
 	end
-	warn('MAGIC_DATA_2 | ', BaseMagicSpell)
+	warn('MAGIC_DATA_2 | ', BaseMagicAbility)
 
 	-- SET THE MAGIC OPERATION ORDER
 	local operationRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('OperationRune', PlayerProfileData.MagicItemsInventory, 8)
 	warn('OPERATION RUNES; ', #operationRunes, operationRunes)
 	for _, operationRune in ipairs( operationRunes ) do
-		MagicDataService:AddMagicDataOperation(PlayerProfileData, BaseMagicSpell, operationRune.UUID, false)
+		MagicDataService:AddMagicDataOperation(PlayerProfileData, BaseMagicAbility, operationRune.UUID, false)
 	end
 	warn('MAGIC_DATA_3 | ', PlayerProfileData)
 
-	MagicDataService:RecalculateMagicDataCost(PlayerProfileData, BaseMagicSpell)
+	MagicDataService:RecalculateMagicDataCost(PlayerProfileData, BaseMagicAbility)
 
-	warn('FINAL_MAGIC_DATA | ', BaseMagicSpell)
+	warn('FINAL_MAGIC_DATA | ', BaseMagicAbility)
 end
 
 function Module:Init(otherSystems)

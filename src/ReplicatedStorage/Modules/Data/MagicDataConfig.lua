@@ -25,22 +25,22 @@ end
 local function fromBaseOperation(override)
 	return TableUtility:SetProperties({
 		-- only allow this operation for certain rune types
-		UseAllowedRuneTypeBlacklist = false,
+		UseAllowedRuneTypeWhitelist = false,
 		RuneTypeWhitelist = {},
 		RuneTypeBlacklist = {},
 
 		-- only allow this operation for certain element types
-		UseAllowedElementTypeBlacklist = false,
+		UseAllowedElementTypeWhitelist = false,
 		ElementTypeWhitelist = {},
 		ElementTypeBlacklist = {},
 
 		-- only these specific types of operations can be *DIRECTLY* BEFORE this one
-		UsePreviousOperationTypeBlacklist = false,
+		UsePreviousOperationTypeWhitelist = false,
 		PreviousOperationTypeWhitelist = {},
 		PreviousOperationTypeBlacklist = {},
 
 		-- only these specific types of operations can be *DIRECTLY* AFTER this one
-		UseNextOperationTypeBlacklist = false,
+		UseNextOperationTypeWhitelist = false,
 		NextOperationTypeWhitelist = {},
 		NextOperationTypeBlacklist = {},
 	}, override)
@@ -50,8 +50,8 @@ end
 local Module = {}
 
 Module.MaxEquippedMagics = 5
-Module.MaxElementsPerSpell = 3
-Module.MaximumSpellsInInventory = 20 -- maximum spells the player can hold
+Module.MaxElementsPerAbility = 3
+Module.MaximumAbilitiesInInventory = 20 -- maximum abilities the player can hold
 
 Module.BaseRuneTypes = {
 	Projectile = fromBaseRune({
