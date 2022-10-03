@@ -18,6 +18,8 @@ function Module:CreateFakeData()
 		MagicArtifactInventory = { },
 		-- all custom created magic with the artifact data are stored here
 		MagicDataInventory = { },
+		-- player's inventory
+		Inventory = {},
 	}
 end
 
