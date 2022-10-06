@@ -555,7 +555,7 @@ function Module:Init(otherSystems)
 		if typeof(Data) == 'table' then
 			return Module:HandleDataEditRemote(LocalPlayer, Data)
 		end
-		return nil, 'Invalid argument provided.'
+		return nil, 'Inalid argument provided.'
 	end
 end
 

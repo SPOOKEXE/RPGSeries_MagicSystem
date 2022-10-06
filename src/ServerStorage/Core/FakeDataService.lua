@@ -38,7 +38,10 @@ function Module:PlayerAdded(LocalPlayer)
 end
 
 function Module:PlayerRemoving(LocalPlayer)
-	SystemsContainer.MagicDataService:ClearAllEmptyBaseMagics(LocalPlayer)
+	local CurrentData = FakeProfileCache[LocalPlayer]
+	if CurrentData then
+		SystemsContainer.MagicDataService:ClearAllEmptyBaseMagics(CurrentData.Data)
+	end
 	FakeProfileCache[LocalPlayer] = nil
 end
 
