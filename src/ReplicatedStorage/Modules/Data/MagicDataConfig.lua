@@ -46,30 +46,19 @@ local function fromBaseOperation(override)
 		UseNextOperationTypeWhitelist = false,
 		NextOperationTypeWhitelist = {},
 		NextOperationTypeBlacklist = {},
+
+		Cooldown = 1,
 	}, override)
 end
 
 -- // Module // --
 local Module = {}
 
-Module.MaxEquippedMagics = 4
-Module.MaxElementsPerAbility = 3
-Module.MaximumAbilitiesInInventory = 20 -- maximum abilities the player can hold
-
 Module.BaseRuneTypes = {
 	Projectile = fromBaseRune({
 
 	}),
-	CloseAOE = fromBaseRune({
-
-	}),
-	TargetSingle = fromBaseRune({
-
-	}),
-	TargetMultiple = fromBaseRune({
-
-	}),
-	TargetSelf = fromBaseRune({
+	Self = fromBaseRune({
 
 	}),
 }
@@ -79,7 +68,7 @@ Module.Elements = {
 	Fire = fromBaseElement({
 
 	}),
-	Water = fromBaseElement({
+	--[[Water = fromBaseElement({
 
 	}),
 	Earth = fromBaseElement({
@@ -87,32 +76,72 @@ Module.Elements = {
 	}),
 	Air = fromBaseElement({
 
-	}),
+	}),]]
 
 	-- compound elements
+	--[[
 	Lighting = fromBaseElement({
 
 	}),
 	Magma = fromBaseElement({
 
-	}),
+	}),]]
 }
 
 Module.OperationsData = {
+
+	-- // ACTIONS // --
+
 	-- projectiles that aren't controlled
 	NonControlledProjectile = fromBaseOperation({
 
 	}),
-	-- projectiles that are controlled (or have minor control over it)
-	ControlledProjectile = fromBaseOperation({
+	-- projectiles that are directionally controlled by mouse (or have minor directional control using mouse)
+	MouseControlledProjectile = fromBaseOperation({
 
 	}),
-	-- explode w/ no crater
+	-- split projectile into multiple projectiles
+	SplitIntoSmaller = fromBaseOperation({
+
+	}),
+
+	-- single targets
+	HealingSingle = fromBaseOperation({
+
+	}),
+
+	DamageSingle = fromBaseOperation({
+
+	}),
+
+	-- aoe targets
+	HealingAOE = fromBaseOperation({
+
+	}),
+
+	DamageAOE = fromBaseOperation({
+
+	}),
+
+	-- // VISUALS // --
 	ExplosionNoCrater = fromBaseOperation({
 
 	}),
-	-- explode w/ crater
+
 	ExplosionCrater = fromBaseOperation({
+
+	}),
+
+	-- // CONDITIONS // --
+	DelaySeconds = fromBaseOperation({
+
+	}),
+
+	OnSurfaceImpact = fromBaseOperation({
+
+	}),
+
+	OnCharacterImpact = fromBaseOperation({
 
 	}),
 }

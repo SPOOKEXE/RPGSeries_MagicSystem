@@ -1,9 +1,11 @@
 local Debris = game:GetService('Debris')
 local TweenService = game:GetService('TweenService')
+local RunService = game:GetService('RunService')
 local ContextActionService = game:GetService('ContextActionService')
 
 local Players = game:GetService('Players')
 local LocalPlayer = Players.LocalPlayer
+local LocalMouse = LocalPlayer:GetMouse()
 
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local ReplicatedAssets = ReplicatedStorage:WaitForChild('Assets')
@@ -15,12 +17,14 @@ local MagicControllerConfig = ReplicatedModules.Data.MagicControllerConfig
 local RemoteService = ReplicatedModules.Services.RemoteService
 local AbilityHandlerFunction = RemoteService:GetRemote('AbilityHandlerFunction', 'RemoteFunction', false)
 local AbilityHandlerEvent = RemoteService:GetRemote('AbilityHandlerEvent', 'RemoteEvent', false)
+local MouseUpdateEvent = RemoteService:GetRemote('MouseUpdateEvent', 'RemoteEvent', false)
 
 local SystemsContainer = {}
 
-local AbilityKeybindMap = MagicControllerConfig.AbilityKeybindMap
+local AbilityKeybindMap = MagicControllerConfig.ABILITY_KEYBIND_MAP
 
 local HoldingKeybinds = {}
+local KeybindCleanupMaid = ReplicatedModules.Classes.Maid.New()
 
 -- // Module // --
 local Module = {}
@@ -40,7 +44,9 @@ function Module:HandleClientInvoked(Data)
 end
 
 function Module:SetupKeybinds()
-	local function HandleKeybind(actionName, inputState, inputObject)
+
+	-- handle keybinds
+	ContextActionService:BindAction(MagicControllerConfig.ABILITY_TRIGGER_ACTION_NAME, function(actionName, inputState, inputObject)
 		-- not related to this action
 		if actionName ~= MagicControllerConfig.ABILITY_TRIGGER_ACTION_NAME then
 			return
@@ -54,7 +60,7 @@ function Module:SetupKeybinds()
 			local keyIndex = table.find(AbilityKeybindMap, inputObject.KeyCode)
 			local doAbility, err = AbilityHandlerFunction:InvokeServer({
 				Job = MagicControllerConfig.ABILITY_TRIGGER_START,
-				Keybind = keyIndex,
+				Index = keyIndex,
 			})
 
 			print(doAbility and 'Ability has been triggered! ' or 'Could not activate ability!')
@@ -70,20 +76,33 @@ function Module:SetupKeybinds()
 			HoldingKeybinds[inputObject.KeyCode] = nil
 			AbilityHandlerEvent:FireServer({
 				Job = MagicControllerConfig.ABILITY_TRIGGER_END,
-				Keybind = table.find(AbilityKeybindMap, inputObject.KeyCode)
+				Index = table.find(AbilityKeybindMap, inputObject.KeyCode)
 			})
 		end
-	end
+	end, false, unpack(AbilityKeybindMap))
 
-	ContextActionService:BindAction(
-		MagicControllerConfig.ABILITY_TRIGGER_ACTION_NAME, HandleKeybind,
-		false, unpack(AbilityKeybindMap)
-	)
+	-- cleanup keybinds
+	KeybindCleanupMaid:Give(function()
+		HoldingKeybinds = {}
+	end)
+
+	KeybindCleanupMaid:Give(RunService.Heartbeat:Connect(function()
+		local HitCF = LocalMouse.Hit
+		local Position, LookVector = HitCF.Position, HitCF.LookVector
+		MouseUpdateEvent:FireServer(
+			math.floor(Position.X * 10) / 10,
+			math.floor(Position.Y * 10) / 10,
+			math.floor(Position.Z * 10) / 10,
+			math.floor(LookVector.X * 100) / 100,
+			math.floor(LookVector.Y * 100) / 100,
+			math.floor(LookVector.Z * 100) / 100
+		)
+	end))
 end
 
 function Module:ClearKeybinds()
-	ContextActionService:UnbindAction(MagicControllerConfig.ABILITY_TRIGGER_START)
-	ContextActionService:UnbindAction(MagicControllerConfig.ABILITY_TRIGGER_END)
+	ContextActionService:UnbindAction(MagicControllerConfig.ABILITY_TRIGGER_ACTION_NAME)
+	KeybindCleanupMaid:Cleanup() -- cleanup extras
 end
 
 function Module:Init(otherSystems)

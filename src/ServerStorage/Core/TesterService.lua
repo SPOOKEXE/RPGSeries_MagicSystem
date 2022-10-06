@@ -9,6 +9,7 @@ local ReplicatedModules = require(ReplicatedStorage:WaitForChild('Modules'))
 
 local MagicDataConfigModule = ReplicatedModules.Data.MagicDataConfig
 local InventoryDataConfigModule = ReplicatedModules.Data.InventoryDataConfig
+local MagicControllerConfigModule = ReplicatedModules.Data.MagicControllerConfig
 
 local SystemsContainer = {}
 
@@ -18,9 +19,7 @@ local Module = {}
 function Module:GivePlayerHeapsOfVariety(LocalPlayer, amountToGive)
 	local MagicDataService = SystemsContainer.MagicDataService
 	local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true).Data
-
 	amountToGive = amountToGive or 10
-	warn('Giving ', LocalPlayer.Name, ' heaps of runes.')
 
 	for baseRuneType, _ in pairs(MagicDataConfigModule.BaseRuneTypes) do
 		for _ = 1, amountToGive do
@@ -41,61 +40,59 @@ function Module:GivePlayerHeapsOfVariety(LocalPlayer, amountToGive)
 	end
 end
 
-
-function Module:StartTest(LocalPlayer)
+function Module:GivePlayerRandomMagic(LocalPlayer)
 	local MagicDataService = SystemsContainer.MagicDataService
 	local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true).Data
 
+	warn('Giving', LocalPlayer.Name, 'a randomized magic ability.')
+	local baseMagicRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('MagicRune', PlayerProfileData.MagicItemsInventory, false)
+	local elementRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('ElementRune', PlayerProfileData.MagicItemsInventory, false)
+	local operationRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('OperationRune', PlayerProfileData.MagicItemsInventory, false)
+
+	local RNG = Random.new()
+	local BaseMagicAbility = MagicDataService:CreateBaseMagicAbility(
+		PlayerProfileData,
+		baseMagicRunes[RNG:NextInteger(1, #baseMagicRunes)].UUID,
+		elementRunes[RNG:NextInteger(1, #elementRunes)].UUID,
+		operationRunes[RNG:NextInteger(1, #operationRunes)].UUID
+	)
+
+	warn('FINAL_RANDOM_MAGIC_DATA | ', BaseMagicAbility)
+	return BaseMagicAbility
+end
+
+function Module:StartTest(LocalPlayer)
+	local MagicDataService = SystemsContainer.MagicDataService
+	-- local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true).Data
+
 	warn('Starting Data Edit Tests for ', LocalPlayer)
-	-- warn('DATA_1 | ', PlayerProfileData)
 
-	-- GIVE THE PLAYER A HEAP OF RUNES
-	Module:GivePlayerHeapsOfVariety(LocalPlayer, 5) -- give 'n' number of each type of every type of rune
-	warn('DATA_2 | ', PlayerProfileData)
+	Module:GivePlayerHeapsOfVariety(LocalPlayer, 10) -- give 'n' number of each type of every type of rune
+	local RandomMagicsArray = {} do
+		for _ = 1, MagicControllerConfigModule.MAX_EQUIPPED_MAGICS do
+			table.insert(RandomMagicsArray, Module:GivePlayerRandomMagic(LocalPlayer))
+		end
+	end
 
-	-- CREATE NEW MAGIC ABILITY
-	local BaseMagicAbility = MagicDataService:CreateBaseMagicAbility(PlayerProfileData, false, false, false)
-	-- warn('DATA_3 | ', PlayerProfileData)
-
-	-- SET THE MAGIC BASE RUNE
-	local baseMagicRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('MagicRune', PlayerProfileData.MagicItemsInventory, 3)
-	warn('MAGIC RUNES; ', #baseMagicRunes, baseMagicRunes)
-	warn('MAGIC_DATA_0 | ', BaseMagicAbility)
-	MagicDataService:SetMagicBaseRuneUUID(PlayerProfileData, BaseMagicAbility, baseMagicRunes[1].UUID)
-	warn('MAGIC_DATA_1 | ', BaseMagicAbility)
-
-	-- SET THE MAGIC ELEMENTS
-	local elementRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('ElementRune', PlayerProfileData.MagicItemsInventory, 3)
-	warn('ELEMENT RUNES; ', #elementRunes, elementRunes)
-	for index, elementRune in ipairs( elementRunes ) do
-		if index > MagicDataConfigModule.MaxElementsPerAbility then
+	for index, magicData in ipairs(RandomMagicsArray) do
+		if index > MagicControllerConfigModule.MAX_EQUIPPED_MAGICS then
 			break
 		end
-		MagicDataService:SetMagicElementRuneUUID(PlayerProfileData, BaseMagicAbility, elementRune.UUID, index)
+		MagicDataService:EquipPlayerMagicAbility(LocalPlayer, magicData.UUID, index)
 	end
-	warn('MAGIC_DATA_2 | ', BaseMagicAbility)
-
-	-- SET THE MAGIC OPERATION ORDER
-	local operationRunes = InventoryDataConfigModule:GetCountedIDArrayFromData('OperationRune', PlayerProfileData.MagicItemsInventory, 8)
-	warn('OPERATION RUNES; ', #operationRunes, operationRunes)
-	for _, operationRune in ipairs( operationRunes ) do
-		MagicDataService:AddMagicDataOperation(PlayerProfileData, BaseMagicAbility, operationRune.UUID, false)
-	end
-	warn('MAGIC_DATA_3 | ', PlayerProfileData)
-
-	MagicDataService:RecalculateMagicDataCost(PlayerProfileData, BaseMagicAbility)
-
-	warn('FINAL_MAGIC_DATA | ', BaseMagicAbility)
 end
 
 function Module:Init(otherSystems)
 	SystemsContainer = otherSystems
 
 	-- lmao
+	--[[
 	SystemsContainer.FakeDataService:PlayerAdded(workspace)
 	Module:StartTest(workspace)
+	]]
 
-	--[[for _, LocalPlayer in ipairs( Players:GetPlayers() ) do
+	--[[]]
+	for _, LocalPlayer in ipairs( Players:GetPlayers() ) do
 		task.defer(function()
 			Module:StartTest(LocalPlayer)
 		end)
@@ -103,7 +100,7 @@ function Module:Init(otherSystems)
 
 	Players.PlayerAdded:Connect(function(LocalPlayer)
 		Module:StartTest(LocalPlayer)
-	end)]]
+	end)
 end
 
 return Module

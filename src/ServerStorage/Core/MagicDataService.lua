@@ -7,6 +7,7 @@ local RemoteService = ReplicatedModules.Services.RemoteService
 local MagicDataEditFunction = RemoteService:GetRemote('MagicDataEdit', 'RemoteFunction', false)
 
 local MagicDataConfigModule = ReplicatedModules.Data.MagicDataConfig
+local MagicControllerConfigModule = ReplicatedModules.Data.MagicControllerConfig
 local InventoryDataConfigModule = ReplicatedModules.Data.InventoryDataConfig
 
 local TableUtility = ReplicatedModules.Utility.Table
@@ -82,9 +83,10 @@ function Module:NewBaseMagicData()
 
 		MaxMagicDataCost = 5, -- maximum artifact cost this ability can hold (from Base Rune)
 		CurrentMagicDataCost = 0, -- each artifact has a cost to it (compiled cost)
+		MagicCooldown = 10,
 
 		BaseRune = false, -- uuid pointing to the magic rune data
-		Elements = table.create(MagicDataConfigModule.MaxElementsPerAbility, false), -- element rune UUIDs
+		Elements = table.create(MagicControllerConfigModule.MAX_ELEMENTS_PER_ABILITY, false), -- element rune UUIDs
 		Operations = {}, -- array of UUIDs pointing to ArtifactDatas (+ indicates order)
 	}
 end
@@ -95,11 +97,34 @@ end
 
 -- Reconcile Magic Data
 function Module:ReconcileMagicData(PlayerProfileData, MagicData)
-	while #MagicData.Elements > MagicDataConfigModule.MaxElementsPerAbility do
+	while #MagicData.Elements > MagicControllerConfigModule.MAX_ELEMENTS_PER_ABILITY do
 		table.remove(MagicData.Elements, #MagicData.Elements)
 	end
 	Module:ClearAllEmptyBaseMagics(PlayerProfileData)
 	Module:RecalculateMagicDataCost(PlayerProfileData, MagicData)
+end
+
+-- Recalculate magic cooldown
+function Module:RecalculateMagicDataCooldown(PlayerProfileData, magicData)
+	local MagicItemCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicItemsInventory)
+
+	local NewMagicCooldown = 0
+	if #magicData.Elements == 1 then
+		NewMagicCooldown = 5
+	elseif #magicData.Elements == 2 then
+		NewMagicCooldown = 10
+	elseif magicData.Elements == 3 then
+		NewMagicCooldown = 20
+	end
+
+	for _, operationUUID in ipairs( magicData.Operations ) do
+		local operationData = MagicItemCache[operationUUID]
+		local operationConfig = operationData and MagicDataConfigModule.OperationsData[operationData.Type]
+		if operationConfig then
+			NewMagicCooldown += (operationConfig.Cooldown or 1)
+		end
+	end
+	magicData.MagicCooldown = NewMagicCooldown
 end
 
 -- Recalculate magic cost
@@ -289,6 +314,10 @@ function Module:SetMagicElementRuneUUID(PlayerProfileData, magicData, elementRun
 		return false, 'Element Rune with UUID could not be found: '..tostring(elementRuneUUID)
 	end
 
+	--[[if elementRuneData.ParentMagic then
+		return false, 'This element rune is already being used in another magic ability.'
+	end]]
+
 	-- Elements check
 	local UsedElementsTypeArray = {} do
 		for _, usedElementRuneUUID in ipairs(magicData.Elements) do
@@ -477,29 +506,50 @@ end
 -- allow this ability to be created even if all slots aren't filled
 -- but don't allow the player to actually use the magic unless it has the bare minimum
 function Module:CreateBaseMagicAbility(PlayerProfileData, magicRuneUUID, elementRuneUUIDs, operationUUIDs)
-	if #PlayerProfileData.MagicAbilityInventory + 1 > MagicDataConfigModule.MaximumAbilitiesInInventory then
+	if #PlayerProfileData.MagicAbilityInventory + 1 > MagicControllerConfigModule.MAX_ABILITIES_IN_INVENTORY then
 		return false, 'You have reached the maximum capacity of magic abilities.'
 	end
 
 	local emptyAbilityData = Module:NewBaseMagicData()
-	Module:SetMagicBaseRuneUUID(PlayerProfileData, emptyAbilityData, magicRuneUUID)
-	for _, UUID in ipairs( elementRuneUUIDs or {} ) do
-		Module:SetMagicElementRuneUUID(PlayerProfileData, emptyAbilityData, UUID)
+	if typeof(magicRuneUUID) == 'string' then
+		Module:SetMagicBaseRuneUUID(PlayerProfileData, emptyAbilityData, magicRuneUUID)
 	end
-	for _, Operation in ipairs( operationUUIDs or {} ) do
-		Module:SetMagicBaseRuneUUID(PlayerProfileData, emptyAbilityData, Operation)
+
+	if typeof(elementRuneUUIDs) == 'string' then
+		elementRuneUUIDs = { elementRuneUUIDs }
 	end
+	if typeof(elementRuneUUIDs) == 'table' then
+		for index, UUID in ipairs(elementRuneUUIDs) do
+			Module:SetMagicElementRuneUUID(PlayerProfileData, emptyAbilityData, UUID, index)
+		end
+	end
+
+	if typeof(operationUUIDs) == 'string' then
+		operationUUIDs = { operationUUIDs }
+	end
+	if typeof(operationUUIDs) == 'table' then
+		for _, Operation in ipairs(operationUUIDs) do
+			Module:AddMagicDataOperation(PlayerProfileData, emptyAbilityData, Operation)
+		end
+	end
+
 	table.insert(PlayerProfileData.MagicAbilityInventory, emptyAbilityData)
 	return emptyAbilityData
 end
 
 -- Equip magic abilities
-function Module:EquipPlayerMagicAbility(LocalPlayer, magicData, index)
-	local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true)
+function Module:EquipPlayerMagicAbility(LocalPlayer, magicUUID, index)
+	local PlayerProfileData = SystemsContainer.FakeDataService:GetProfileFromPlayer(LocalPlayer, true).Data
+	local UUIDCache = InventoryDataConfigModule:GetUUIDDictionaryFromData(PlayerProfileData.MagicAbilityInventory)
+	local magicData = UUIDCache[magicUUID]
 
-	if index < 1 or index > MagicDataConfigModule.MaxEquippedMagics then
+	if not magicData then
+		return false, 'The player does not have any magic with the UUID of '..tostring(magicUUID)
+	end
+
+	if index < 1 or index > MagicControllerConfigModule.MAX_EQUIPPED_MAGICS then
 		local errStr = 'Invalid Equip Slot Range. "1 > %s > %s" holds untrue.'
-		return false, string.format(errStr, index, MagicDataConfigModule.MaxEquippedMagics)
+		return false, string.format(errStr, index, MagicControllerConfigModule.MAX_EQUIPPED_MAGICS)
 	end
 
 	-- if it is equipped already, unequip it
@@ -546,6 +596,10 @@ end
 -- Handle any remote invokations
 function Module:HandleDataEditRemote(LocalPlayer, Data)
 	warn('HANDLE REMOTE - ', LocalPlayer, Data)
+
+	if Data.Job == 'EquipMagic' and typeof(Data.UUID) == 'string' and typeof(Data.Index) == 'number' then
+		Module:EquipPlayerMagicAbility(LocalPlayer, Data.UUID, Data.Index)
+	end
 end
 
 function Module:Init(otherSystems)

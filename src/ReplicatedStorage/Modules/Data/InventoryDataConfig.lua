@@ -3,7 +3,7 @@
 local Module = {}
 
 function Module:GetCountedIndexArrayFromData(IndexName, TargetIndexValue, DataArray, totalCount)
-	totalCount = math.max(1, totalCount or 1)
+	totalCount = math.max(1, totalCount or math.huge)
 	local FoundArray = {}
 	for _, Data in pairs( DataArray ) do
 		if Data[IndexName] == TargetIndexValue then
